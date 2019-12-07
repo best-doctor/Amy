@@ -1,11 +1,10 @@
-import collections
 import datetime
 
 import requests
 
 from config import PROJECTS_INFO, GITLAB_API_TOKEN
 from utils.format import get_prev_workday_limits_str
-from utils.gitlab import get_message_for_commits_grouped_by_tickets, get_ticket_id
+from utils.gitlab import get_message_for_commits_grouped_by_tickets
 from utils.slack import send_slack_message
 
 
@@ -32,16 +31,6 @@ def fetch_and_send_yesterday_stat():
             with_repo_stat=show_core_stat,
         )
         if messages is None:
-            continue
-
-        commits_info = collections.defaultdict(list)
-
-        for commit_info in commits_list:
-            ticket_id = get_ticket_id(commit_info)
-            if ticket_id is None:
-                continue  # коммит с мерджем или ревертом
-            commits_info[ticket_id].append(commit_info)
-        if not commits_info:
             continue
 
         messages = [f'*{project_name} за вчера*'] + messages

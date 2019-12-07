@@ -4,33 +4,27 @@ import json
 import operator
 import random
 import re
-from typing import Any, Mapping, Tuple, List, Optional
+from typing import Any, Mapping, Tuple, List, Optional, DefaultDict
 
 import requests
 
 from config import (
     GITLAB_API_TOKEN, JIRA_TICKET_URL_PREFIX, DEVELEOPERS_INFO,
     GET_CORE_STAT_SHELL_COMMAND, REPO_TO_CODETYPE_MAPPING,
-)
+    COMMIT_REGEXP)
 from utils.shell import run_shell_command
 from utils.format import bool_display
 
 
 CommitInfo = Mapping[str, Any]
+CommitDiffInfo = Mapping[str, Any]
 Comment = Mapping[str, Any]
+GroupedCommits = Mapping[str, List[CommitInfo]]
 
 
-def get_message_for_commits_grouped_by_tickets(
-        commits_list: List[Mapping[str, Any]],
-        project_id: int,
-        project_path: str,
-        with_commits_info: bool = True,
-        with_repo_stat: bool = True,
-        auditor_retries: int = 5,
-) -> Optional[List[str]]:
-    commits_info = collections.defaultdict(list)
-    messages = ['']
+def group_commits_by_ticket(commits_list) -> Tuple[GroupedCommits, List[CommitInfo]]:
     revert_commits = []
+    commits_info: DefaultDict[str, list] = collections.defaultdict(list)
 
     for commit_info in commits_list:
         ticket_id = get_ticket_id(commit_info)
@@ -39,22 +33,56 @@ def get_message_for_commits_grouped_by_tickets(
                 revert_commits.append(commit_info)
             continue
         commits_info[ticket_id].append(commit_info)
+    return commits_info, revert_commits
+
+
+def get_message_for_commits(
+    ticket_commits: List[CommitInfo],
+    ticket_id: str,
+    auditors: List[str],
+    project_path: str,
+    project_id: int,
+    with_commits_info: bool,
+) -> Tuple[str, Optional[str]]:
+    auditor_retries = 5
+    auditor = None
+    for _ in range(auditor_retries):
+        if auditor is None or auditor in auditors:
+            auditor = get_auditor_for_commits(ticket_commits, project_id)
+    message = (
+        f'<{JIRA_TICKET_URL_PREFIX}{ticket_id}|{ticket_id}> '
+        f'(<@{auditor}>, сделай ревью)\n'
+    )
+    for commit in sorted(ticket_commits, key=operator.itemgetter('created_at'), reverse=True):
+        message += make_commit_message(commit, project_path, project_id, with_commits_info)
+    return message, auditor
+
+
+def get_message_for_commits_grouped_by_tickets(
+        commits_list: List[Mapping[str, Any]],
+        project_id: int,
+        project_path: str,
+        with_commits_info: bool = True,
+        with_repo_stat: bool = True,
+) -> Optional[List[str]]:
+    messages = ['']
+
+    commits_info, revert_commits = group_commits_by_ticket(commits_list)
     if not commits_info:
         return None
 
-    auditors = []
+    auditors: List[str] = []
     for ticket_id, ticket_commits in commits_info.items():
-        auditor = None
-        for _ in range(auditor_retries):
-            if auditor is None or auditor in auditors:
-                auditor = get_auditor_for_commits(ticket_commits, project_id)
-        auditors.append(auditor)
-        message = (
-            f'<{JIRA_TICKET_URL_PREFIX}{ticket_id}|{ticket_id}> '
-            f'(<@{auditor}>, сделай ревью)\n'
+        message, auditor = get_message_for_commits(
+            ticket_commits,
+            ticket_id,
+            auditors,
+            project_path,
+            project_id,
+            with_commits_info,
         )
-        for commit in sorted(ticket_commits, key=operator.itemgetter('created_at'), reverse=True):
-            message += make_commit_message(commit, project_path, project_id, with_commits_info)
+        if auditor:
+            auditors.append(auditor)
         messages.append(message)
     if revert_commits:
         message = 'Ревертнутые коммиты:\n'
@@ -107,6 +135,23 @@ def make_commit_message(
     )
 
 
+def fetch_diffs(project_id: int, commit_hash: str) -> List[CommitDiffInfo]:
+    return requests.get(
+        f'https://gitlab.com/api/v4//projects/{project_id}/repository/commits/{commit_hash}/diff',
+        params={'private_token': GITLAB_API_TOKEN},
+    ).json()
+
+
+def get_additions_per_file(diffs_info: List[CommitDiffInfo]) -> List[Tuple[str, int]]:
+    additions_per_file: List[Tuple[str, int]] = []
+    for diff in diffs_info:
+        additions = sum(1 for l in diff['diff'].split('\n') if l.startswith('+'))
+        additions_per_file.append(
+            (diff['new_path'], additions),
+        )
+    return additions_per_file
+
+
 def _is_commit_has_tests(commit: Mapping[str, Any], project_id: int = None) -> bool:
     test_path_parts = [
         '/tests/',
@@ -114,16 +159,8 @@ def _is_commit_has_tests(commit: Mapping[str, Any], project_id: int = None) -> b
     ]
     min_additions_in_test_file_lines = 5
     project_id = project_id or commit['project_id']
-    raw_diff_info = requests.get(
-        f'https://gitlab.com/api/v4//projects/{project_id}/repository/commits/{commit["id"]}/diff',
-        params={'private_token': GITLAB_API_TOKEN},
-    ).json()
-    additions_per_file: List[Tuple[str, int]] = []
-    for diff in raw_diff_info:
-        additions = sum(1 for l in diff['diff'].split('\n') if l.startswith('+'))
-        additions_per_file.append(
-            (diff['new_path'], additions),
-        )
+    raw_diff_info = fetch_diffs(project_id, commit['id'])
+    additions_per_file = get_additions_per_file(raw_diff_info)
     for filepath, additions_amount in additions_per_file:
         for path_part in test_path_parts:
             if path_part in filepath and additions_amount >= min_additions_in_test_file_lines:
@@ -132,9 +169,8 @@ def _is_commit_has_tests(commit: Mapping[str, Any], project_id: int = None) -> b
 
 
 def get_ticket_id(commit) -> Optional[str]:
-    commit_regexp = r'^(Revert .+|Merge .+|((RET|INT|MOD|AUT|ONB|PLAT|MED)-\d{1,4}): .+)'
     commit_message = commit['message'].split('\n')[0].strip()
-    match = re.match(commit_regexp, commit_message)
+    match = re.match(COMMIT_REGEXP, commit_message)
     return match.groups()[1] if match else None
 
 
@@ -159,7 +195,7 @@ def get_commits_in_last_n_days(project_id: int, n_days: int) -> List[CommitInfo]
     until = datetime.datetime.now()
     since = until - datetime.timedelta(days=n_days)
 
-    commits_list = []
+    commits_list: List[CommitInfo] = []
     for page_num in range(100):
         page_commits = requests.get(
             f'https://gitlab.com/api/v4//projects/{project_id}/repository/commits',
@@ -168,7 +204,7 @@ def get_commits_in_last_n_days(project_id: int, n_days: int) -> List[CommitInfo]
                 'since': since.strftime(date_format),
                 'until': until.strftime(date_format),
                 'per_page': 100,
-                'page': page_num,
+                'page': page_num,  # type: ignore
                 'with_stats': True,
             },
         ).json()
@@ -184,6 +220,6 @@ def get_comments_for(commit_sha: str, project_id: int) -> List[Comment]:
         f'commits/{commit_sha}/discussions',
         params={
             'private_token': GITLAB_API_TOKEN,
-            'per_page': 100,
+            'per_page': 100,  # type: ignore
         },
     ).json()
