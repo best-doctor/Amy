@@ -6,6 +6,8 @@
 
 Set of scripts for codereview flow with Jira, Slack and GitLab.
 
+![Amy](https://raw.githubusercontent.com/best-doctor/Amy/master/docs_imgs/amy.jpg)
+
 ## Installation
 
 - `git clone`
