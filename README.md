@@ -1,5 +1,9 @@
 # Amy
 
+[![Build Status](https://travis-ci.org/best-doctor/Amy.svg?branch=master)](https://travis-ci.org/best-doctor/Amy)
+[![Maintainability](https://api.codeclimate.com/v1/badges/e12619d2003e8919c256/maintainability)](https://codeclimate.com/github/best-doctor/Amy/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/e12619d2003e8919c256/test_coverage)](https://codeclimate.com/github/best-doctor/Amy/test_coverage)
+
 Set of scripts for codereview flow with Jira, Slack and GitLab.
 
 ## Installation
