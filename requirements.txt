@@ -1,4 +1,5 @@
 requests==2.22.0
+git+https://github.com/best-doctor/Mario.git
 
 # flake8 stuff
 flake8==3.7.9

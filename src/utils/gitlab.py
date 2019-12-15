@@ -58,49 +58,6 @@ def get_message_for_commits(
     return message, auditor
 
 
-def get_message_for_commits_grouped_by_tickets(
-        commits_list: List[Mapping[str, Any]],
-        project_id: int,
-        project_path: str,
-        with_commits_info: bool = True,
-        with_repo_stat: bool = True,
-) -> Optional[List[str]]:
-    messages = ['']
-
-    commits_info, revert_commits = group_commits_by_ticket(commits_list)
-    if not commits_info:
-        return None
-
-    auditors: List[str] = []
-    for ticket_id, ticket_commits in commits_info.items():
-        message, auditor = get_message_for_commits(
-            ticket_commits,
-            ticket_id,
-            auditors,
-            project_path,
-            project_id,
-            with_commits_info,
-        )
-        if auditor:
-            auditors.append(auditor)
-        messages.append(message)
-    if revert_commits:
-        message = 'Ревертнутые коммиты:\n'
-        for commit in revert_commits:
-            message += make_commit_message(
-                commit,
-                project_path,
-                project_id,
-                with_commits_info=False,
-                strip_commit_message=False,
-            )
-        messages.append(message)
-    if with_repo_stat:
-        messages.append(get_core_stat_message())
-
-    return messages
-
-
 def get_core_stat_message():
     repo_stat = json.loads(
         run_shell_command(GET_CORE_STAT_SHELL_COMMAND),
