@@ -2,7 +2,7 @@ from typing import Any
 
 import requests
 
-from config import SLACK_HOOK_URL, DEBUG_SLACK_CHANNEL_ID, DEBUG
+from config import DEBUG, DEBUG_SLACK_CHANNEL_ID, REQUESTS_TIMEOUT, SLACK_HOOK_URL
 
 
 def send_slack_message(message: str, channel_id: str = None, **kwargs: Any) -> None:
@@ -11,4 +11,4 @@ def send_slack_message(message: str, channel_id: str = None, **kwargs: Any) -> N
         'channel': DEBUG_SLACK_CHANNEL_ID if DEBUG else channel_id,
         **kwargs,
     }
-    requests.post(SLACK_HOOK_URL, json=payload)
+    requests.post(SLACK_HOOK_URL, json=payload, timeout=REQUESTS_TIMEOUT)

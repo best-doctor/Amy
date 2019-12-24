@@ -4,7 +4,7 @@ from typing import DefaultDict, List
 import requests
 from super_mario import BasePipeline, input_pipe, process_pipe, output_pipe
 
-from config import GITLAB_API_TOKEN
+from config import GITLAB_API_TOKEN, REQUESTS_TIMEOUT
 from utils.gitlab import (
     _is_commit_has_tests, get_ticket_id, is_revert_commit,
     get_message_for_commits, make_commit_message,
@@ -32,6 +32,7 @@ class AmyPipeline(BasePipeline):
                 'per_page': 100,
                 'with_stats': True,
             },
+            timeout=REQUESTS_TIMEOUT,
         ).json()
         return {'raw_commits': commits_list}
 
