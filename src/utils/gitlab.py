@@ -11,7 +11,7 @@ import requests
 from config import (
     GITLAB_API_TOKEN, JIRA_TICKET_URL_PREFIX, DEVELEOPERS_INFO,
     GET_CORE_STAT_SHELL_COMMAND, REPO_TO_CODETYPE_MAPPING,
-    COMMIT_REGEXP)
+    COMMIT_REGEXP, REQUESTS_TIMEOUT)
 from utils.shell import run_shell_command
 from utils.format import bool_display
 
@@ -96,6 +96,7 @@ def fetch_diffs(project_id: int, commit_hash: str) -> List[CommitDiffInfo]:
     return requests.get(
         f'https://gitlab.com/api/v4//projects/{project_id}/repository/commits/{commit_hash}/diff',
         params={'private_token': GITLAB_API_TOKEN},
+        timeout=REQUESTS_TIMEOUT,
     ).json()
 
 
@@ -164,6 +165,7 @@ def get_commits_in_last_n_days(project_id: int, n_days: int) -> List[CommitInfo]
                 'page': page_num,  # type: ignore
                 'with_stats': True,
             },
+            timeout=REQUESTS_TIMEOUT,
         ).json()
         if not page_commits:
             break
@@ -179,4 +181,5 @@ def get_comments_for(commit_sha: str, project_id: int) -> List[Comment]:
             'private_token': GITLAB_API_TOKEN,
             'per_page': 100,  # type: ignore
         },
+        timeout=REQUESTS_TIMEOUT,
     ).json()

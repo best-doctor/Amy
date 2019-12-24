@@ -7,6 +7,8 @@ JIRA_TICKET_URL_PREFIX = os.environ.get('JIRA_TICKET_URL_PREFIX')
 SLACK_HOOK_URL = os.environ['SLACK_HOOK_URL']
 COMMIT_REGEXP = os.environ['COMMIT_REGEXP']  # should fetch from repo settings
 
+REQUESTS_TIMEOUT = 10  # seconds
+
 PROJECTS_INFO: Final[List[Tuple[int, str, str, str]]] = [
     # (
     #   project_id,
