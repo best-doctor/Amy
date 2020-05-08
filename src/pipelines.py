@@ -25,7 +25,7 @@ class AmyPipeline(BasePipeline):
     def fetch_commits(project_id, date_from: str, date_to: str):
         commits_list = requests.get(
             f'https://gitlab.com/api/v4/projects/{project_id}/repository/commits',
-            params={
+            params={  # type: ignore
                 'private_token': GITLAB_API_TOKEN,  # type: ignore
                 'since': date_from,
                 'until': date_to,

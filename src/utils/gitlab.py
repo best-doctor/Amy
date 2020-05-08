@@ -157,7 +157,7 @@ def get_commits_in_last_n_days(project_id: int, n_days: int) -> List[CommitInfo]
     for page_num in range(100):
         page_commits = requests.get(
             f'https://gitlab.com/api/v4//projects/{project_id}/repository/commits',
-            params={
+            params={  # type: ignore
                 'private_token': GITLAB_API_TOKEN,
                 'since': since.strftime(date_format),
                 'until': until.strftime(date_format),
@@ -177,7 +177,7 @@ def get_comments_for(commit_sha: str, project_id: int) -> List[Comment]:
     return requests.get(
         f'https://gitlab.com/api/v4//projects/{project_id}/repository/'
         f'commits/{commit_sha}/discussions',
-        params={
+        params={  # type: ignore
             'private_token': GITLAB_API_TOKEN,
             'per_page': 100,  # type: ignore
         },

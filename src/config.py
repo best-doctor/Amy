@@ -1,5 +1,6 @@
 import os
-from typing import Final, List, Tuple, Mapping
+from typing import List, Tuple, Mapping
+from typing_extensions import Final
 
 GITLAB_API_TOKEN: str = os.environ['GITLAB_API_TOKEN']
 DOGGIE_SLACK_TOKEN = os.environ.get('DOGGIE_SLACK_TOKEN')
