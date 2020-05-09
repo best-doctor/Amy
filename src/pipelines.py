@@ -31,7 +31,7 @@ class AmyPipeline(BasePipeline):
     def fetch_commits(project_id: int, date_from: str, date_to: str) -> Dict[str, List[CommitInfo]]:
         commits_list = requests.get(
             f'https://gitlab.com/api/v4/projects/{project_id}/repository/commits',
-            params={
+            params={  # type: ignore
                 'private_token': GITLAB_API_TOKEN,
                 'since': date_from,
                 'until': date_to,
