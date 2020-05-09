@@ -1,5 +1,5 @@
 import collections
-from typing import DefaultDict, List
+from typing import DefaultDict, List, Mapping, Dict, Union
 
 import requests
 from super_mario import BasePipeline, input_pipe, process_pipe, output_pipe
@@ -10,6 +10,12 @@ from utils.gitlab import (
     get_message_for_commits, make_commit_message,
 )
 from utils.slack import send_slack_message
+from common_types import CommitInfo
+
+CommitTestsInfo = Mapping[str, bool]
+RevertedCommits = List[CommitInfo]
+GroupedByTiketCommits = DefaultDict[str, list]
+GroupedCommits = Dict[str, Union[RevertedCommits, GroupedByTiketCommits]]
 
 
 class AmyPipeline(BasePipeline):
@@ -22,11 +28,11 @@ class AmyPipeline(BasePipeline):
     ]
 
     @input_pipe
-    def fetch_commits(project_id, date_from: str, date_to: str):
+    def fetch_commits(project_id: int, date_from: str, date_to: str) -> Dict[str, List[CommitInfo]]:
         commits_list = requests.get(
             f'https://gitlab.com/api/v4/projects/{project_id}/repository/commits',
-            params={  # type: ignore
-                'private_token': GITLAB_API_TOKEN,  # type: ignore
+            params={
+                'private_token': GITLAB_API_TOKEN,
                 'since': date_from,
                 'until': date_to,
                 'per_page': 100,
@@ -34,18 +40,23 @@ class AmyPipeline(BasePipeline):
             },
             timeout=REQUESTS_TIMEOUT,
         ).json()
+
         return {'raw_commits': commits_list}
 
     @input_pipe
-    def fetch_test_coverage(raw_commits, project_id):
+    def fetch_test_coverage(
+        raw_commits: List[CommitInfo], project_id: int,
+    ) -> Dict[str, CommitTestsInfo]:
         commits_test_info = {}
+
         for commit in raw_commits:
             has_tests = _is_commit_has_tests(commit, project_id)
             commits_test_info[commit['id']] = has_tests
+
         return {'commits_has_tests_info': commits_test_info}
 
     @process_pipe
-    def group_commits_by_ticket(raw_commits):
+    def group_commits_by_ticket(raw_commits: List[CommitInfo]) -> GroupedCommits:
         revert_commits = []
         commits_info: DefaultDict[str, list] = collections.defaultdict(list)
 
@@ -64,12 +75,9 @@ class AmyPipeline(BasePipeline):
 
     @process_pipe
     def generate_message(
-        project_id,
-        project_path,
-        commits_grouped_by_ticket,
-        commits_has_tests_info,
-        revert_commits,
-    ):
+        project_id: int, project_path: str, commits_grouped_by_ticket: GroupedByTiketCommits,
+        commits_has_tests_info: CommitTestsInfo, revert_commits: RevertedCommits,
+    ) -> Dict[str, List[str]]:
         messages = ['']
         auditors: List[str] = []
         for ticket_id, ticket_commits in commits_grouped_by_ticket.items():
@@ -95,10 +103,11 @@ class AmyPipeline(BasePipeline):
                     strip_commit_message=False,
                 )
             messages.append(message)
+
         return {'messages': messages}
 
     @output_pipe
-    def send_messages(messages, slack_chat_id):
+    def send_messages(messages: List[str], slack_chat_id: str) -> None:
         for message in messages:
             send_slack_message(
                 message,
