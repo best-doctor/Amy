@@ -1,5 +1,5 @@
 import collections
-from typing import DefaultDict, List, Mapping, Dict, Union
+from typing import DefaultDict, List, Mapping, Dict, Union  # noqa: TYP001
 
 import requests
 from super_mario import BasePipeline, input_pipe, process_pipe, output_pipe
