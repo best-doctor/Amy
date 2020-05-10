@@ -32,5 +32,5 @@ pytest-cov==2.8.1
 pytest-env==0.6.2
 pytest-mock==1.13.0
 pytest-randomly==3.1.0
-pytest-socket==0.3.3
+pytest-network==0.0.1
 freezegun==0.3.12
