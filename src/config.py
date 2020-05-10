@@ -2,11 +2,11 @@ import os
 from typing import List, Tuple, Mapping
 from typing_extensions import Final
 
-GITLAB_API_TOKEN: str = os.environ['GITLAB_API_TOKEN']
+GITLAB_API_TOKEN: str = os.environ.get('GITLAB_API_TOKEN', '')
 DOGGIE_SLACK_TOKEN = os.environ.get('DOGGIE_SLACK_TOKEN')
 JIRA_TICKET_URL_PREFIX = os.environ.get('JIRA_TICKET_URL_PREFIX')
-SLACK_HOOK_URL = os.environ['SLACK_HOOK_URL']
-COMMIT_REGEXP = os.environ['COMMIT_REGEXP']  # should fetch from repo settings
+SLACK_HOOK_URL = os.environ.get('SLACK_HOOK_URL', '')
+COMMIT_REGEXP = os.environ.get('COMMIT_REGEXP', '')  # should fetch from repo settings
 
 REQUESTS_TIMEOUT = 10  # seconds
 
@@ -41,7 +41,7 @@ DEBUG_SLACK_CHANNEL_ID = os.environ.get('DEBUG_SLACK_CHANNEL_ID')
 
 
 BASE_CORE_DIR = os.environ.get('BASE_CORE_DIR', '/var/www/core/')
-GET_CORE_STAT_SHELL_COMMAND = os.environ.get('GET_CORE_STAT_SHELL_COMMAND')
+GET_CORE_STAT_SHELL_COMMAND = os.environ.get('GET_CORE_STAT_SHELL_COMMAND', '')
 
 try:
     from local_config import *  # noqa: F401, F403
