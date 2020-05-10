@@ -4,7 +4,7 @@ import json
 import operator
 import random
 import re
-from typing import Any, Mapping, Tuple, List, Optional, DefaultDict
+from typing import Tuple, List, Optional, DefaultDict
 
 import requests
 
@@ -14,15 +14,12 @@ from config import (
     COMMIT_REGEXP, REQUESTS_TIMEOUT)
 from utils.shell import run_shell_command
 from utils.format import bool_display
+from common_types import CommitInfo, CommitDiffInfo, Comment, GroupedCommits
 
 
-CommitInfo = Mapping[str, Any]
-CommitDiffInfo = Mapping[str, Any]
-Comment = Mapping[str, Any]
-GroupedCommits = Mapping[str, List[CommitInfo]]
-
-
-def group_commits_by_ticket(commits_list) -> Tuple[GroupedCommits, List[CommitInfo]]:
+def group_commits_by_ticket(
+    commits_list: List[CommitInfo],
+) -> Tuple[GroupedCommits, List[CommitInfo]]:
     revert_commits = []
     commits_info: DefaultDict[str, list] = collections.defaultdict(list)
 
@@ -58,7 +55,7 @@ def get_message_for_commits(
     return message, auditor
 
 
-def get_core_stat_message():
+def get_core_stat_message() -> str:
     repo_stat = json.loads(
         run_shell_command(GET_CORE_STAT_SHELL_COMMAND),
     )
@@ -73,11 +70,11 @@ def get_core_stat_message():
 
 
 def make_commit_message(
-        commit: Mapping[str, Any],
-        project_path: str,
-        project_id: int,
-        with_commits_info: bool,
-        strip_commit_message: bool = True,
+    commit: CommitInfo,
+    project_path: str,
+    project_id: int,
+    with_commits_info: bool,
+    strip_commit_message: bool = True,
 ) -> str:
     message = commit['message'].split('\n')[0].strip()
     commit_message = ': '.join(message.split(': ')[1:]) if strip_commit_message else message
@@ -110,7 +107,7 @@ def get_additions_per_file(diffs_info: List[CommitDiffInfo]) -> List[Tuple[str, 
     return additions_per_file
 
 
-def _is_commit_has_tests(commit: Mapping[str, Any], project_id: int = None) -> bool:
+def _is_commit_has_tests(commit: CommitInfo, project_id: int = None) -> bool:
     test_path_parts = [
         '/tests/',
         '/__tests__/',
@@ -126,18 +123,18 @@ def _is_commit_has_tests(commit: Mapping[str, Any], project_id: int = None) -> b
     return False
 
 
-def get_ticket_id(commit) -> Optional[str]:
+def get_ticket_id(commit: CommitInfo) -> Optional[str]:
     commit_message = commit['message'].split('\n')[0].strip()
     match = re.match(COMMIT_REGEXP, commit_message)
     return match.groups()[1] if match else None
 
 
-def is_revert_commit(commit: Mapping[str, Any]) -> bool:
+def is_revert_commit(commit: CommitInfo) -> bool:
     commit_message = commit['message'].split('\n')[0].strip()
     return commit_message.startswith('Revert ')
 
 
-def get_auditor_for_commits(commits: List[Mapping[str, Any]], project_id: int) -> str:
+def get_auditor_for_commits(commits: List[CommitInfo], project_id: int) -> str:
     authors = [c['author_email'] for c in commits]
     author_with_max_commits = collections.Counter(authors).most_common()[0][0]
     author_group = REPO_TO_CODETYPE_MAPPING[project_id]
@@ -162,7 +159,7 @@ def get_commits_in_last_n_days(project_id: int, n_days: int) -> List[CommitInfo]
                 'since': since.strftime(date_format),
                 'until': until.strftime(date_format),
                 'per_page': 100,
-                'page': page_num,  # type: ignore
+                'page': page_num,
                 'with_stats': True,
             },
             timeout=REQUESTS_TIMEOUT,
@@ -179,7 +176,7 @@ def get_comments_for(commit_sha: str, project_id: int) -> List[Comment]:
         f'commits/{commit_sha}/discussions',
         params={  # type: ignore
             'private_token': GITLAB_API_TOKEN,
-            'per_page': 100,  # type: ignore
+            'per_page': 100,
         },
         timeout=REQUESTS_TIMEOUT,
     ).json()
