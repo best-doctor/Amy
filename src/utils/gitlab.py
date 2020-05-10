@@ -4,7 +4,7 @@ import json
 import operator
 import random
 import re
-from typing import Tuple, List, Optional, DefaultDict
+from typing import Tuple, List, Optional
 
 import requests
 
@@ -14,23 +14,7 @@ from config import (
     COMMIT_REGEXP, REQUESTS_TIMEOUT)
 from utils.shell import run_shell_command
 from utils.format import bool_display
-from common_types import CommitInfo, CommitDiffInfo, Comment, GroupedCommits
-
-
-def group_commits_by_ticket(
-    commits_list: List[CommitInfo],
-) -> Tuple[GroupedCommits, List[CommitInfo]]:
-    revert_commits = []
-    commits_info: DefaultDict[str, list] = collections.defaultdict(list)
-
-    for commit_info in commits_list:
-        ticket_id = get_ticket_id(commit_info)
-        if ticket_id is None:
-            if is_revert_commit(commit_info):
-                revert_commits.append(commit_info)
-            continue
-        commits_info[ticket_id].append(commit_info)
-    return commits_info, revert_commits
+from common_types import CommitInfo, CommitDiffInfo, Comment
 
 
 def get_message_for_commits(
